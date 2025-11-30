@@ -1,80 +1,54 @@
-# Skate AI – Trick Classifier (Ollie / Pop Shuvit / Kickflip)
+# 🛹 SkateTrick AI
 
-Simple experiment to classify flatground skateboard tricks from short videos
-using pose estimation (MediaPipe) + a RandomForest classifier.
+SkateTrick AI is een prototype AI-tool die skateboardtricks herkent op basis van video.
+De tool is getraind op eigen skatefootage (kickflip & pop shuvit) en geeft naast de trick
+ook een **cleanliness score** (hoe “clean” de trick werd geland).
 
-## Project structure
+## ✨ Features
 
-```text
-skate_ai/
-  config.py
-  requirements.txt
-  README.md
-  src/
-    __init__.py
-    extract_features.py
-    train_model.py
-    predict_video.py
-  data/
-    raw/
-      ollie/
-      pop_shuvit/
-      kickflip/
-  models/
-```
+- Upload een video met één trick (kickflip of pop shuvit)
+- AI voorspelt welke trick het is + confidence score
+- Extra **cleanliness score (0–100)** op basis van spronghoogte en landingsstabiliteit
+- Realtime mode met webcam: druk op `T` en de laatste ~2s worden geanalyseerd
+- Model getraind op eigen dataset met MediaPipe Pose + RandomForest classifier
 
-## Setup
+## 🧠 Technische pipeline
+
+1. **Data**  
+   - Eigen videodata gefilmd (zelfde camerahoek, flatground)  
+   - Mappenstructuur:
+     - `data/raw/pop_shuvit/`
+     - `data/raw/kickflip/`
+
+2. **Pose-extractie (MediaPipe Pose)**  
+   - Voor elk frame worden de 6 belangrijkste landmarks gebruikt:
+     - left/right ankle, knee, hip  
+   - Coördinaten worden:
+     - genormaliseerd t.o.v. het heup-middenpunt  
+     - geschaald op basis van de afstand tussen de heupen  
+
+3. **Feature engineering**  
+   - Per landmark: mean, std, min, max voor x en y  
+   - Extra features:
+     - minimale enkelhoogte (spronghoogte)
+     - **height_score_raw**
+     - **landing_stability_raw**
+     - **cleanliness_score_raw** = combinatie van height + stabiliteit
+
+4. **Model**  
+   - `RandomForestClassifier` (scikit-learn)
+   - Getraind op het feature-vector per video (één rij per clip)
+   - Model + feature-columns opgeslagen in `models/trick_classifier.joblib`
+
+5. **Inference**  
+   - Nieuwe video → zelfde feature pipeline → model.predict + predict_proba  
+   - Cleanliness wordt getoond als 0–100 score
+
+## 🛠️ Installatie
 
 ```bash
-# create & activate venv (Windows)
-python -m venv venv
+# Python 3.11 gebruiken!
+py -3.11 -m venv venv
 venv\Scripts\activate
 
-# or (macOS/Linux)
-python -m venv venv
-source venv/bin/activate
-
 pip install -r requirements.txt
-```
-
-## Add your videos
-
-Put your flatground videos here (one trick per video, same camera angle):
-
-```text
-data/raw/ollie/ollie_01.mp4
-data/raw/ollie/ollie_02.mp4
-...
-data/raw/pop_shuvit/pop_01.mp4
-...
-data/raw/kickflip/kickflip_01.mp4
-...
-```
-
-## Build dataset
-
-```bash
-python -m src.extract_features
-```
-
-This creates `data/dataset.csv` with one feature row per video.
-
-## Train model
-
-```bash
-python -m src.train_model
-```
-
-This trains a RandomForest classifier and saves it to `models/trick_classifier.joblib`.
-
-## Predict on a new video
-
-```bash
-python -m src.predict_video data/raw/kickflip/kickflip_01.mp4
-```
-
-You should see a prediction like:
-
-```text
-🎯 Predicted trick: kickflip (confidence: 0.93)
-```
