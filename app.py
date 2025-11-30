@@ -21,6 +21,7 @@ HTML = """
 <body style="font-family: sans-serif; max-width: 600px; margin: 40px auto;">
     <h1>🛹 SkateTrick AI</h1>
     <p>Upload een korte video (1 trick) en ik probeer te raden: kickflip of pop shuvit.</p>
+
     <form method="post" enctype="multipart/form-data">
         <input type="file" name="video" accept="video/*" required>
         <button type="submit">Analyze</button>
@@ -29,6 +30,7 @@ HTML = """
     {% if result %}
         <h2>Resultaat</h2>
         <p><strong>Predicted trick:</strong> {{ result.trick }} (confidence: {{ result.confidence }})</p>
+        <p><strong>Cleanliness score:</strong> {{ result.cleanliness }} / 100</p>
     {% endif %}
 </body>
 </html>
@@ -47,27 +49,37 @@ def index():
             save_path.unlink(missing_ok=True)
 
             if feats is None:
-                result = {"trick": "unknown", "confidence": "0.00"}
+                result = {
+                    "trick": "unknown",
+                    "confidence": "0.00",
+                    "cleanliness": 0,
+                }
             else:
+                # Dataframe met features
                 df = pd.DataFrame([feats])
                 for col in feature_columns:
                     if col not in df.columns:
                         df[col] = 0.0
                 df = df[feature_columns]
 
+                # Voorspelling
                 pred = model.predict(df)[0]
                 proba = model.predict_proba(df)[0]
                 labels = model.classes_
                 conf = proba[list(labels).index(pred)]
 
+                # Cleanliness omzetten naar 0–100
+                clean_raw = feats.get("cleanliness_score_raw", 0.0)
+                clean_display = int(max(0, min(100, clean_raw * 100)))
+
                 result = {
                     "trick": pred,
                     "confidence": f"{conf:.2f}",
+                    "cleanliness": clean_display,
                 }
 
     return render_template_string(HTML, result=result)
 
 
 if __name__ == "__main__":
-    # Start de Flask dev server
     app.run(debug=True)
