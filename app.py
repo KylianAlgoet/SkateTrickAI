@@ -4,6 +4,7 @@ import pandas as pd
 from joblib import load
 from src.extract_features import extract_video_features
 from config import MODEL_PATH
+import random
 
 app = Flask(__name__)
 
@@ -252,6 +253,16 @@ HTML = """
             color: var(--muted);
         }
 
+        .coach-tip {
+            margin-top: 10px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(148,163,184,0.35);
+            background: rgba(15,23,42,0.55);
+            font-size: 12px;
+            color: var(--text);
+        }
+
         @media (max-width: 640px) {
             .card { padding: 20px; }
         }
@@ -319,8 +330,12 @@ HTML = """
                     </div>
                 </div>
 
+                <div class="coach-tip">
+                    🛹 <strong>Coach tip:</strong> {{ result.coach_tip }}
+                </div>
+
                 <div class="footer-note">
-                    Dit prototype gebruikt MediaPipe Pose + een RandomForest-classifier getraind op je eigen skatefootage.
+                   
                 </div>
             </div>
         {% endif %}
@@ -346,6 +361,76 @@ def cleanliness_color_and_label(score: int):
     else:
         return "#ef4444", "Sketchy landing"
 
+def get_coach_feedback(trick: str, confidence: float, cleanliness: int) -> str:
+    low_confidence_tips = [
+        "De AI twijfelt—film iets dichterbij met je volledige lichaam in beeld.",
+        "Moeilijk te herkennen. Probeer betere belichting en een duidelijker camerastandpunt.",
+        "Zorg dat je hele lichaam zichtbaar is en film iets stabieler."
+    ]
+
+    kickflip_clean = [
+        "Heel clean! Probeer nu iets meer pop voor extra stijl.",
+        "Strakke kickflip 👌 Volgende stap: hoger poppen.",
+        "Mooie landing. Werk nu aan meer airtime."
+    ]
+
+    kickflip_medium = [
+        "Goed geland, maar buig dieper door je knieën bij de landing.",
+        "De flip zit goed, maar je landing kan stabieler.",
+        "Probeer je gewicht beter te verdelen bij het neerkomen."
+    ]
+
+    kickflip_low = [
+        "Sketchy landing. Focus op schouders recht houden.",
+        "Onstabiel. Probeer met beide voeten tegelijk te landen.",
+        "Werk aan controle: voeten boven de bolts bij de landing."
+    ]
+
+    shuv_clean = [
+        "Super smooth! Probeer sneller met beide voeten te catchen.",
+        "Mooie shuv 👌 Volgende stap: land iets lager voor meer controle.",
+        "Strakke landing. Blijf focussen op timing."
+    ]
+
+    shuv_medium = [
+        "De shuv zit goed, maar werk aan je balans bij de landing.",
+        "Goede poging—probeer rechter te landen.",
+        "Focus op een stabielere houding bij het neerkomen."
+    ]
+
+    shuv_low = [
+        "Onstabiel. Probeer het board sneller onder je te krijgen.",
+        "Sketchy landing—focus op controle in plaats van snelheid.",
+        "Werk aan timing: catch het board vroeger."
+    ]
+
+    if confidence < 0.55:
+        return random.choice(low_confidence_tips)
+
+    if cleanliness >= 80:
+        if trick == "kickflip":
+            return random.choice(kickflip_clean)
+        elif trick == "pop_shuvit":
+            return random.choice(shuv_clean)
+        else:
+            return "Heel clean geland! Hou die controle vast."
+
+    elif cleanliness >= 50:
+        if trick == "kickflip":
+            return random.choice(kickflip_medium)
+        elif trick == "pop_shuvit":
+            return random.choice(shuv_medium)
+        else:
+            return "Goede poging—probeer stabieler neer te komen."
+
+    else:
+        if trick == "kickflip":
+            return random.choice(kickflip_low)
+        elif trick == "pop_shuvit":
+            return random.choice(shuv_low)
+        else:
+            return "Moeilijke landing—focus op balans en controle."
+
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -369,6 +454,11 @@ def index():
                     "conf_pct": 0,
                     "clean_color": "#ef4444",
                     "clean_level": "No score",
+                    "coach_tip": random.choice([
+                        "Geen pose gedetecteerd. Film volledig lichaam in beeld, met genoeg licht.",
+                        "Ik zie geen pose. Zorg dat je volledig in beeld bent en film met meer licht.",
+                        "Pose niet gevonden. Probeer een stabielere video met je hele lichaam zichtbaar."
+                    ]),
                 }
             else:
                 df = pd.DataFrame([feats])
@@ -397,6 +487,7 @@ def index():
                     "conf_pct": int(conf * 100),
                     "clean_color": clean_color,
                     "clean_level": clean_level,
+                    "coach_tip": get_coach_feedback(pred, conf, clean_display),
                 }
 
     return render_template_string(HTML, result=result)
