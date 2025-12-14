@@ -1,0 +1,45 @@
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+
+# --- Virtual envs ---
+venv/
+env/
+.venv/
+
+# --- VSCode cache ---
+.vscode/
+
+# --- OS junk ---
+Thumbs.db
+.DS_Store
+
+# --- Model artifacts ---
+models/*.joblib
+models/*.pkl
+
+# Als je het model wél wil tracken, verwijder deze ^ twee regels
+
+# --- Temporary videos ---
+upload_temp.mp4
+realtime_temp.mp4
+
+# Alles uit data/raw (grote bestanden, hoort niet in git)
+data/raw/
+
+# Geprocessed dataset (optioneel — alleen tracken indien nodig)
+# data/dataset.csv
+
+# --- Flask temp ---
+instance/
+*.log
+
+# --- Jupyter stuff (mocht je ooit notebooks gebruiken) ---
+.ipynb_checkpoints/
+
+# --- Pip stuff ---
+pip-wheel-metadata/
+*.egg-info/
